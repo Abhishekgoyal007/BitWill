@@ -1,0 +1,208 @@
+.dashboard-page {
+    min-height: 100vh;
+    padding: calc(72px + var(--space-8)) 0 var(--space-16);
+    background: var(--bg-primary);
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-8);
+}
+
+.header-content h1 {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+    margin-bottom: var(--space-2);
+}
+
+.header-content p {
+    font-size: var(--text-base);
+    color: var(--text-secondary);
+}
+
+/* Connect Prompt */
+.connect-prompt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--space-24);
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-2xl);
+    margin-top: var(--space-16);
+}
+
+.prompt-icon {
+    color: var(--color-primary-400);
+    margin-bottom: var(--space-6);
+}
+
+.connect-prompt h2 {
+    font-size: var(--text-2xl);
+    margin-bottom: var(--space-3);
+}
+
+.connect-prompt p {
+    color: var(--text-secondary);
+}
+
+/* Warning Banner */
+.warning-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-6);
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-8);
+    color: var(--color-warning);
+}
+
+.warning-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.warning-content strong {
+    color: var(--color-warning);
+}
+
+.warning-content span {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+    margin-bottom: var(--space-12);
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-6);
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xl);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-glass);
+    border-radius: var(--radius-lg);
+    color: var(--color-primary-400);
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.stat-label {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+}
+
+.stat-value {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+}
+
+.stat-value.gold {
+    color: var(--color-gold-400);
+}
+
+.stat-value.warning {
+    color: var(--color-warning);
+}
+
+/* Vaults Section */
+.vaults-section {
+    margin-top: var(--space-8);
+}
+
+.vaults-section .section-title {
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    margin-bottom: var(--space-6);
+}
+
+.vaults-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-6);
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--space-16);
+    background: var(--bg-card);
+    border: 1px dashed var(--border-primary);
+    border-radius: var(--radius-xl);
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-glass);
+    border-radius: 50%;
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-6);
+}
+
+.empty-state h3 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    margin-bottom: var(--space-2);
+}
+
+.empty-state p {
+    color: var(--text-secondary);
+    margin-bottom: var(--space-6);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .vaults-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        gap: var(--space-4);
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
