@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Vault } from '../types';
-import { Clock, Users, AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Clock, Users, AlertTriangle, CheckCircle, XCircle, Loader2, Link as LinkIcon, Wifi, WifiOff } from 'lucide-react';
 import './VaultCard.css';
 
 interface VaultCardProps {
@@ -52,6 +52,13 @@ const VaultCard: React.FC<VaultCardProps> = ({ vault, onCheckIn, onViewDetails, 
                     className: 'status-claimed',
                     color: 'var(--text-tertiary)',
                 };
+            case 'cancelled':
+                return {
+                    label: 'Cancelled',
+                    icon: XCircle,
+                    className: 'status-claimed',
+                    color: 'var(--text-tertiary)',
+                };
             default:
                 return {
                     label: 'Unknown',
@@ -65,21 +72,64 @@ const VaultCard: React.FC<VaultCardProps> = ({ vault, onCheckIn, onViewDetails, 
     const statusConfig = getStatusConfig();
     const StatusIcon = statusConfig.icon;
 
+    // Get transaction explorer URL
+    const getTxUrl = () => {
+        if (!vault.txid) return null;
+        // Check if it's a demo transaction
+        if (vault.txid.startsWith('demo_')) return null;
+        // Testnet explorer
+        return `https://mempool.space/testnet4/tx/${vault.txid}`;
+    };
+
+    const txUrl = getTxUrl();
+
     return (
-        <div className={`vault-card ${vault.status === 'claimed' ? 'vault-claimed' : ''}`}>
+        <div className={`vault-card ${vault.status === 'claimed' || vault.status === 'cancelled' ? 'vault-claimed' : ''}`}>
             <div className="vault-header">
                 <div className="vault-title-section">
                     <h3 className="vault-name">{vault.name}</h3>
-                    <div className={`vault-status ${statusConfig.className}`}>
-                        <StatusIcon size={14} />
-                        {statusConfig.label}
+                    <div className="vault-badges">
+                        <div className={`vault-status ${statusConfig.className}`}>
+                            <StatusIcon size={14} />
+                            {statusConfig.label}
+                        </div>
+                        <div className={`vault-chain-badge ${vault.isOnChain ? 'on-chain' : 'demo'}`}>
+                            {vault.isOnChain ? (
+                                <>
+                                    <Wifi size={12} />
+                                    On-Chain
+                                </>
+                            ) : (
+                                <>
+                                    <WifiOff size={12} />
+                                    Demo
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="vault-amount">
                     <span className="amount-value">{vault.amount.toFixed(4)}</span>
                     <span className="amount-unit">BTC</span>
+                    {vault.amountSats > 0 && (
+                        <span className="amount-sats">{vault.amountSats.toLocaleString()} sats</span>
+                    )}
                 </div>
             </div>
+
+            {/* Transaction Link */}
+            {txUrl && (
+                <a
+                    href={txUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="vault-tx-link"
+                >
+                    <LinkIcon size={12} />
+                    View on Explorer
+                    <span className="tx-id">{vault.txid?.slice(0, 8)}...{vault.txid?.slice(-8)}</span>
+                </a>
+            )}
 
             <div className="vault-progress-section">
                 <div className="progress-header">
@@ -88,15 +138,15 @@ const VaultCard: React.FC<VaultCardProps> = ({ vault, onCheckIn, onViewDetails, 
                         <span>Time until trigger</span>
                     </div>
                     <span className="progress-days">
-                        {vault.status === 'claimed' ? 'N/A' : `${daysRemaining} days`}
+                        {vault.status === 'claimed' || vault.status === 'cancelled' ? 'N/A' : `${daysRemaining} days`}
                     </span>
                 </div>
                 <div className="progress-bar">
                     <div
                         className="progress-fill"
                         style={{
-                            width: vault.status === 'claimed' ? '100%' : `${progressPercentage}%`,
-                            background: vault.status === 'claimed'
+                            width: vault.status === 'claimed' || vault.status === 'cancelled' ? '100%' : `${progressPercentage}%`,
+                            background: vault.status === 'claimed' || vault.status === 'cancelled'
                                 ? 'var(--text-tertiary)'
                                 : progressPercentage > 80
                                     ? 'var(--color-error)'
@@ -127,7 +177,7 @@ const VaultCard: React.FC<VaultCardProps> = ({ vault, onCheckIn, onViewDetails, 
             </div>
 
             <div className="vault-actions">
-                {vault.status !== 'claimed' && vault.status !== 'triggered' && onCheckIn && (
+                {vault.status !== 'claimed' && vault.status !== 'cancelled' && vault.status !== 'triggered' && onCheckIn && (
                     <button
                         className="btn btn-primary vault-action-btn"
                         onClick={() => onCheckIn(vault.id)}

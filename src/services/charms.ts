@@ -8,17 +8,58 @@
  * - Time-locked state transitions
  * - Multi-party ownership and claims
  * - Provable execution via zkVM
+ * 
+ * Integration with charms-js library for reading/extracting charms from transactions.
+ * Vault creation uses Charms spell format for future on-chain integration.
  */
 
-import type { Vault, Beneficiary } from '../types';
+import type { Beneficiary } from '../types';
+
+// Try to import charms-js (for reading charms from transactions)
+let charmsLib: typeof import('charms-js') | null = null;
+let wasmReady = false;
+
+// Initialize charms-js library
+async function initCharmsLib() {
+    if (charmsLib && wasmReady) return true;
+
+    try {
+        const lib = await import('charms-js');
+        charmsLib = lib;
+
+        // Check if WASM is ready (browser auto-initializes)
+        if (typeof lib.isWasmReady === 'function') {
+            // Wait for WASM to be ready (may take a moment)
+            for (let i = 0; i < 10; i++) {
+                if (lib.isWasmReady()) {
+                    wasmReady = true;
+                    console.log('[CharmsService] WASM initialized successfully');
+                    return true;
+                }
+                await new Promise(r => setTimeout(r, 500));
+            }
+        }
+
+        console.log('[CharmsService] charms-js loaded (WASM status unknown)');
+        return true;
+    } catch (error) {
+        console.warn('[CharmsService] charms-js not available, using mock mode:', error);
+        return false;
+    }
+}
 
 // Configuration
 const CHARMS_API_URL = import.meta.env.VITE_CHARMS_API_URL || 'https://api.charms.dev';
-const BITCOIN_NETWORK = import.meta.env.VITE_BITCOIN_NETWORK || 'testnet';
+const BITCOIN_NETWORK = import.meta.env.VITE_BITCOIN_NETWORK || 'testnet4';
+
+// BitWill Vault Charm App Verification Key
+// In production, this would be our compiled app VK from `charms app build`
+const BITWILL_APP_VK = 'bitwill_vault_app_v1_' + Date.now().toString(36);
 
 // Vault state as stored in the Charm
-interface VaultCharmState {
-    type: 'vault';
+export interface VaultCharmState {
+    type: 'bitwill_vault';
+    version: number;
     owner: string;
     beneficiaries: {
         address: string;
@@ -32,15 +73,30 @@ interface VaultCharmState {
     amountSats: number;
 }
 
-// Spell actions
-type SpellAction = 'create' | 'check_in' | 'claim' | 'cancel';
+// Charm object structure (from charms-js)
+export interface CharmObj {
+    appId: string;
+    amount: number;
+    version: number;
+    metadata: {
+        ticker?: string;
+        name?: string;
+        description?: string;
+        image?: string;
+    };
+    app: Record<string, unknown>;
+    outputIndex: number;
+    txid: string;
+    address: string;
+}
 
-// Transaction result
+// Spell result
 interface SpellResult {
     success: boolean;
     txId?: string;
     error?: string;
     proof?: string;
+    spell?: string;
 }
 
 /**
@@ -51,39 +107,106 @@ interface SpellResult {
 export class CharmsService {
     private apiUrl: string;
     private network: string;
-    private appVk: string | null = null;
+    private appVk: string;
+    private initialized: boolean = false;
 
     constructor() {
         this.apiUrl = CHARMS_API_URL;
         this.network = BITCOIN_NETWORK;
+        this.appVk = BITWILL_APP_VK;
     }
 
     /**
-     * Initialize the service with the app verification key
-     * The VK identifies our BitWill app contract
+     * Get the API URL for Charms
      */
-    async initialize(): Promise<void> {
-        // In production, this would load our pre-compiled app VK
-        // For demo, we use a mock VK
-        this.appVk = 'bitwill_app_vk_' + Date.now().toString(36);
-        console.log('[CharmsService] Initialized with VK:', this.appVk);
+    getApiUrl(): string {
+        return this.apiUrl;
+    }
+
+    /**
+     * Initialize the Charms service
+     */
+    async initialize(): Promise<boolean> {
+        if (this.initialized) return true;
+
+        console.log('[CharmsService] Initializing...');
+        console.log('[CharmsService] API URL:', this.apiUrl);
+
+        // Try to load charms-js
+        const libLoaded = await initCharmsLib();
+
+        if (libLoaded) {
+            console.log('[CharmsService] Charms library loaded');
+        }
+
+        this.initialized = true;
+        console.log('[CharmsService] Initialized with app VK:', this.appVk);
+        console.log('[CharmsService] Network:', this.network);
+
+        return true;
+    }
+
+    /**
+     * Check if the service is ready
+     */
+    isReady(): boolean {
+        return this.initialized;
+    }
+
+    /**
+     * Extract charms from a transaction
+     * Uses the charms-js library to parse transaction and find charms
+     */
+    async extractCharmsFromTx(
+        txHex: string,
+        txId: string,
+        walletOutpoints: Set<string>
+    ): Promise<CharmObj[]> {
+        if (!charmsLib) {
+            console.warn('[CharmsService] charms-js not loaded, cannot extract charms');
+            return [];
+        }
+
+        try {
+            const charms = await charmsLib.extractCharmsForWallet(
+                txHex,
+                txId,
+                walletOutpoints,
+                this.network as 'testnet4' | 'mainnet'
+            );
+
+            console.log('[CharmsService] Extracted charms:', charms);
+            return charms as CharmObj[];
+        } catch (error) {
+            console.error('[CharmsService] Error extracting charms:', error);
+            return [];
+        }
     }
 
     /**
      * Create a new inheritance vault
      * 
-     * This mints a new Charm NFT containing the vault state and attaches it
-     * to the user's Bitcoin UTXO.
+     * This generates a spell to mint a new Charm NFT containing the vault state.
+     * In production, this would:
+     * 1. Generate the spell YAML
+     * 2. Submit to Charms API/CLI for proof generation
+     * 3. Create a Bitcoin transaction with the spell
+     * 4. User signs and broadcasts the transaction
      */
     async createVault(
         ownerAddress: string,
-        name: string,
+        vaultName: string,
         amountSats: number,
         beneficiaries: Beneficiary[],
         inactivityPeriodDays: number,
         utxoToSpend: string
     ): Promise<SpellResult> {
-        console.log('[CharmsService] Creating vault...');
+        await this.initialize();
+
+        console.log('[CharmsService] Creating vault:', vaultName);
+        console.log('[CharmsService] Owner:', ownerAddress);
+        console.log('[CharmsService] Amount:', amountSats, 'sats');
+        console.log('[CharmsService] Beneficiaries:', beneficiaries.length);
 
         // Convert beneficiaries to charm format
         const charmBeneficiaries = beneficiaries.map(b => ({
@@ -94,110 +217,186 @@ export class CharmsService {
 
         // Vault state for the charm
         const vaultState: VaultCharmState = {
-            type: 'vault',
+            type: 'bitwill_vault',
+            version: 1,
             owner: ownerAddress,
             beneficiaries: charmBeneficiaries,
-            inactivityPeriod: inactivityPeriodDays * 24 * 60 * 60, // Convert to seconds
+            inactivityPeriod: inactivityPeriodDays * 24 * 60 * 60,
             lastCheckIn: Math.floor(Date.now() / 1000),
             createdAt: Math.floor(Date.now() / 1000),
             status: 'active',
             amountSats,
         };
 
+        // Generate app ID from the UTXO (as per Charms spec)
+        const appId = this.hashUtxo(utxoToSpend);
+
         // Generate the spell YAML
         const spell = this.generateCreateVaultSpell(
             ownerAddress,
             vaultState,
-            utxoToSpend
+            utxoToSpend,
+            appId
         );
 
-        console.log('[CharmsService] Generated spell:', spell);
+        console.log('[CharmsService] Generated vault creation spell');
+        console.log('[CharmsService] App ID:', appId);
 
         // In production, this would:
-        // 1. Send the spell to the Charms API
-        // 2. Get back a proof
-        // 3. Create a Bitcoin transaction with the spell
-        // 4. Return the txId
+        // 1. Call Charms API: POST /spell/prove { spell }
+        // 2. Get back proof
+        // 3. Create Bitcoin transaction with spell in OP_RETURN
+        // 4. Return transaction for user to sign
 
-        // For demo, we simulate success
-        return this.simulateSpellExecution('create', {
+        // For now, simulate the spell execution
+        const result = await this.simulateSpellExecution('create_vault', {
             vaultState,
             spell,
+            appId,
         });
+
+        return {
+            ...result,
+            spell,
+        };
     }
 
     /**
      * Perform a check-in to reset the inactivity timer
-     * 
-     * This updates the Charm's lastCheckIn timestamp without moving the Bitcoin.
      */
     async checkIn(vaultId: string, ownerAddress: string): Promise<SpellResult> {
-        console.log('[CharmsService] Checking in for vault:', vaultId);
+        await this.initialize();
 
-        const spell = this.generateCheckInSpell(vaultId, ownerAddress);
+        console.log('[CharmsService] Check-in for vault:', vaultId);
 
-        // In production, this would update the charm state on-chain
-        return this.simulateSpellExecution('check_in', {
+        const newCheckInTime = Math.floor(Date.now() / 1000);
+
+        const spell = `
+# BitWill Check-In Spell
+version: 2
+action: update_state
+app_id: ${vaultId}
+app_vk: ${this.appVk}
+
+# State transition
+transition:
+  type: check_in
+  owner: ${ownerAddress}
+  new_last_check_in: ${newCheckInTime}
+  
+# Proof requirements
+proof:
+  - verify_owner_signature
+  - verify_vault_active
+`;
+
+        console.log('[CharmsService] Generated check-in spell');
+
+        const result = await this.simulateSpellExecution('check_in', {
             vaultId,
-            spell,
+            newCheckInTime,
         });
+
+        return { ...result, spell };
     }
 
     /**
      * Claim funds from a triggered vault
-     * 
-     * This allows a beneficiary to claim their percentage of the vault.
-     * The charm's app logic validates:
-     * 1. The vault is in 'triggered' status
-     * 2. The claimer is a valid beneficiary
-     * 3. The claim amount matches their percentage
      */
     async claimVault(
         vaultId: string,
-        beneficiaryAddress: string
+        beneficiaryAddress: string,
+        percentage: number
     ): Promise<SpellResult> {
-        console.log('[CharmsService] Claiming vault:', vaultId, 'for:', beneficiaryAddress);
+        await this.initialize();
 
-        const spell = this.generateClaimSpell(vaultId, beneficiaryAddress);
+        console.log('[CharmsService] Claiming vault:', vaultId);
+        console.log('[CharmsService] Beneficiary:', beneficiaryAddress);
+        console.log('[CharmsService] Percentage:', percentage);
 
-        // In production, this would:
-        // 1. Verify the vault is triggered
-        // 2. Calculate the beneficiary's share
-        // 3. Create a transaction that splits the UTXO
-        // 4. Update the charm state to track the claim
+        const spell = `
+# BitWill Claim Spell
+version: 2
+action: claim
+app_id: ${vaultId}
+app_vk: ${this.appVk}
 
-        return this.simulateSpellExecution('claim', {
+# Claim parameters
+claim:
+  beneficiary: ${beneficiaryAddress}
+  percentage: ${percentage}
+
+# State transition
+transition:
+  type: claim
+  mark_claimed: true
+
+# Proof requirements
+proof:
+  - verify_vault_triggered
+  - verify_beneficiary_in_list
+  - verify_claim_amount
+`;
+
+        console.log('[CharmsService] Generated claim spell');
+
+        const result = await this.simulateSpellExecution('claim', {
             vaultId,
             beneficiaryAddress,
-            spell,
+            percentage,
         });
+
+        return { ...result, spell };
     }
 
     /**
      * Cancel a vault and return funds to owner
-     * 
-     * Only the owner can cancel, and only if the vault is still active.
      */
     async cancelVault(vaultId: string, ownerAddress: string): Promise<SpellResult> {
+        await this.initialize();
+
         console.log('[CharmsService] Canceling vault:', vaultId);
 
-        const spell = this.generateCancelSpell(vaultId, ownerAddress);
+        const spell = `
+# BitWill Cancel Spell
+version: 2
+action: cancel
+app_id: ${vaultId}
+app_vk: ${this.appVk}
 
-        return this.simulateSpellExecution('cancel', {
+# Cancel parameters
+cancel:
+  owner: ${ownerAddress}
+  return_funds: true
+
+# Proof requirements
+proof:
+  - verify_owner_signature
+  - verify_vault_active
+`;
+
+        console.log('[CharmsService] Generated cancel spell');
+
+        const result = await this.simulateSpellExecution('cancel', {
             vaultId,
-            spell,
+            ownerAddress,
         });
+
+        return { ...result, spell };
     }
 
     /**
-     * Check if a vault should be triggered based on inactivity
+     * Check vault status based on time elapsed
      */
-    async checkVaultStatus(vault: Vault): Promise<'active' | 'warning' | 'triggered'> {
+    checkVaultStatus(
+        lastCheckIn: Date,
+        inactivityPeriodDays: number
+    ): 'active' | 'warning' | 'triggered' {
         const now = Date.now();
-        const lastCheckIn = new Date(vault.lastCheckIn).getTime();
-        const inactivityMs = vault.inactivityPeriod * 24 * 60 * 60 * 1000;
+        const checkInTime = new Date(lastCheckIn).getTime();
+        const inactivityMs = inactivityPeriodDays * 24 * 60 * 60 * 1000;
 
-        const elapsed = now - lastCheckIn;
+        const elapsed = now - checkInTime;
         const remaining = inactivityMs - elapsed;
 
         if (remaining <= 0) {
@@ -210,89 +409,58 @@ export class CharmsService {
     }
 
     // ============================================================
-    // PRIVATE METHODS - Spell Generation
+    // PRIVATE METHODS
     // ============================================================
 
     private generateCreateVaultSpell(
         ownerAddress: string,
         vaultState: VaultCharmState,
-        utxoToSpend: string
+        utxoToSpend: string,
+        appId: string
     ): string {
-        // Generate app ID from the UTXO being spent (as per Charms spec)
-        const appId = this.hashUtxo(utxoToSpend);
-
         return `
 # BitWill Vault Creation Spell
+# Creates a new inheritance vault as a Charm NFT
+
 version: 2
+
+# App definition
 apps:
   ${appId}:
-    id: ${this.appVk}
-    # binary would be: ./target/riscv32im-risc0-zkvm-elf/release/bitwill-vault
+    vk: ${this.appVk}
+
+# Inputs - UTXO being spent
 ins:
   - utxo: ${utxoToSpend}
     charms: []
+
+# Outputs - New charmed UTXO
 outs:
   - address: ${ownerAddress}
     sats: ${vaultState.amountSats}
     charms:
-      - app: ${appId}@${this.appVk}
-        charm:
-          type: vault
+      - app: ${appId}
+        state:
+          type: bitwill_vault
+          version: ${vaultState.version}
           owner: "${vaultState.owner}"
-          beneficiaries: ${JSON.stringify(vaultState.beneficiaries)}
+          beneficiaries:
+${vaultState.beneficiaries.map(b => `            - address: "${b.address}"
+              name: "${b.name}"
+              percentage: ${b.percentage}`).join('\n')}
           inactivity_period: ${vaultState.inactivityPeriod}
           last_check_in: ${vaultState.lastCheckIn}
           created_at: ${vaultState.createdAt}
           status: active
           amount_sats: ${vaultState.amountSats}
+
+# Metadata
+metadata:
+  name: "${vaultState.owner.slice(0, 8)}... Vault"
+  description: "BitWill Inheritance Vault"
+  ticker: "BTVLT"
 `;
     }
-
-    private generateCheckInSpell(vaultId: string, ownerAddress: string): string {
-        const newCheckInTime = Math.floor(Date.now() / 1000);
-
-        return `
-# BitWill Check-In Spell
-version: 2
-# This spell updates the last_check_in timestamp
-# The app contract verifies owner signature
-action: check_in
-vault_id: ${vaultId}
-owner: ${ownerAddress}
-new_check_in_time: ${newCheckInTime}
-`;
-    }
-
-    private generateClaimSpell(vaultId: string, beneficiaryAddress: string): string {
-        return `
-# BitWill Claim Spell
-version: 2
-# This spell allows a beneficiary to claim their share
-# The app contract verifies:
-# 1. Vault is in triggered status
-# 2. Claimer is a valid beneficiary
-# 3. Amount matches percentage
-action: claim
-vault_id: ${vaultId}
-claimer: ${beneficiaryAddress}
-`;
-    }
-
-    private generateCancelSpell(vaultId: string, ownerAddress: string): string {
-        return `
-# BitWill Cancel Spell
-version: 2
-# This spell cancels the vault and returns funds to owner
-# The app contract verifies owner signature and active status
-action: cancel
-vault_id: ${vaultId}
-owner: ${ownerAddress}
-`;
-    }
-
-    // ============================================================
-    // PRIVATE METHODS - Utilities
-    // ============================================================
 
     private hashUtxo(utxo: string): string {
         // Simple hash for demo - in production would use SHA256
@@ -302,21 +470,21 @@ owner: ${ownerAddress}
             hash = ((hash << 5) - hash) + char;
             hash = hash & hash;
         }
-        return Math.abs(hash).toString(16).padStart(64, '0');
+        return 'app_' + Math.abs(hash).toString(16).padStart(16, '0');
     }
 
     private async simulateSpellExecution(
-        action: SpellAction,
+        action: string,
         data: Record<string, unknown>
     ): Promise<SpellResult> {
-        // Simulate network delay
+        // Simulate network delay (would be API call in production)
         await new Promise(resolve => setTimeout(resolve, 1500));
 
-        // Simulate success (in production, this would call the Charms API)
-        console.log(`[CharmsService] Simulated ${action} execution:`, data);
+        console.log(`[CharmsService] Simulated ${action} execution`);
+        console.log('[CharmsService] Data:', JSON.stringify(data, null, 2));
 
-        // Generate a mock transaction ID
-        const txId = 'tx_' + Date.now().toString(16) + '_' + Math.random().toString(16).slice(2);
+        // Generate mock transaction ID
+        const txId = 'tx_' + Date.now().toString(16) + '_' + Math.random().toString(16).slice(2, 10);
 
         return {
             success: true,
@@ -334,7 +502,7 @@ export const charmsService = new CharmsService();
 // ============================================================
 
 /**
- * Format Bitcoin amount from satoshis
+ * Format satoshis to BTC
  */
 export function formatBtc(satoshis: number): string {
     return (satoshis / 100_000_000).toFixed(8);
@@ -348,12 +516,12 @@ export function parseBtc(btc: number): number {
 }
 
 /**
- * Validate a Bitcoin address (basic validation)
+ * Validate a Bitcoin address
  */
 export function isValidBitcoinAddress(address: string): boolean {
-    // Testnet addresses start with tb1, m, n, or 2
-    // Mainnet addresses start with bc1, 1, or 3
+    // Testnet addresses
     const testnetRegex = /^(tb1[a-z0-9]{39,59}|[mn2][a-zA-Z0-9]{25,34})$/;
+    // Mainnet addresses
     const mainnetRegex = /^(bc1[a-z0-9]{39,59}|[13][a-zA-Z0-9]{25,34})$/;
 
     return testnetRegex.test(address) || mainnetRegex.test(address);
@@ -366,7 +534,9 @@ export function getTimeRemaining(lastCheckIn: Date, inactivityPeriodDays: number
     days: number;
     hours: number;
     minutes: number;
+    seconds: number;
     isExpired: boolean;
+    percentRemaining: number;
 } {
     const now = Date.now();
     const checkInTime = new Date(lastCheckIn).getTime();
@@ -374,14 +544,29 @@ export function getTimeRemaining(lastCheckIn: Date, inactivityPeriodDays: number
     const triggerTime = checkInTime + inactivityMs;
 
     const remaining = triggerTime - now;
+    const percentRemaining = Math.max(0, Math.min(100, (remaining / inactivityMs) * 100));
 
     if (remaining <= 0) {
-        return { days: 0, hours: 0, minutes: 0, isExpired: true };
+        return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true, percentRemaining: 0 };
     }
 
     const days = Math.floor(remaining / (24 * 60 * 60 * 1000));
     const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
     const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+    const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
 
-    return { days, hours, minutes, isExpired: false };
+    return { days, hours, minutes, seconds, isExpired: false, percentRemaining };
+}
+
+/**
+ * Format a timestamp for display
+ */
+export function formatTimestamp(date: Date): string {
+    return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(new Date(date));
 }

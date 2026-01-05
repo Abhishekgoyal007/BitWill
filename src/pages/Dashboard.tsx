@@ -14,7 +14,7 @@ import {
 import './Dashboard.css';
 
 const Dashboard: React.FC = () => {
-    const { wallet, vaults, checkIn, isLoading } = useWallet();
+    const { wallet, vaults, checkIn } = useWallet();
     const navigate = useNavigate();
     const [checkingInVaultId, setCheckingInVaultId] = useState<string | null>(null);
 

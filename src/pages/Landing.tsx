@@ -7,7 +7,6 @@ import {
     Users,
     Lock,
     ArrowRight,
-    CheckCircle,
     Zap,
     Heart,
     Github,

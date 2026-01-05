@@ -13,8 +13,15 @@
   <a href="#how-it-works">How It Works</a> •
   <a href="#tech-stack">Tech Stack</a> •
   <a href="#getting-started">Getting Started</a> •
-  <a href="#charms-integration">Charms Integration</a> •
-  <a href="#roadmap">Roadmap</a>
+  <a href="#wallet-integration">Wallet Integration</a> •
+  <a href="#charms-integration">Charms Integration</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Bitcoin-Testnet4-orange?logo=bitcoin" alt="Bitcoin">
+  <img src="https://img.shields.io/badge/Charms-Protocol-blue" alt="Charms">
+  <img src="https://img.shields.io/badge/React-18-61dafb?logo=react" alt="React">
+  <img src="https://img.shields.io/badge/TypeScript-5.0-3178c6?logo=typescript" alt="TypeScript">
 </p>
 
 ---
@@ -38,8 +45,11 @@ Traditional solutions require either:
 ### 🔐 Secure Vaults
 Create programmable vaults that lock your Bitcoin with customizable inheritance rules. You maintain full control of your keys.
 
+### 🔗 Real Wallet Integration
+Connect your **Xverse** wallet (or use Demo Mode) to interact with real Bitcoin on Testnet. Sign real transactions with your wallet.
+
 ### ⏰ Time-Based Triggers
-Set an inactivity period (e.g., 90 days). If you don't "check in" within that period, the vault automatically triggers.
+Set an inactivity period (e.g., 90 days). If you don't "check in" within that period, the vault automatically unlocks for beneficiaries.
 
 ### 👨‍👩‍👧‍👦 Multiple Beneficiaries
 Designate family members or friends as beneficiaries with custom percentage splits.
@@ -54,20 +64,25 @@ Your keys, your Bitcoin. BitWill never has access to your private keys.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         BITWILL FLOW                                     │
+│                         BITWILL FLOW                                    │
 ├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  1. CREATE VAULT                                                         │
+│                                                                         │
+│  1. CONNECT WALLET                                                      │
 │     ┌─────────┐     ┌─────────────────┐     ┌──────────────────┐        │
-│     │  User   │────▶│  Lock Bitcoin   │────▶│  Set Beneficiaries│       │
+│     │ Xverse  │────▶│  Real Wallet    │────▶│  View Balance    │       │
+│     └─────────┘     └─────────────────┘     └──────────────────┘        │
+│                                                                         │
+│  2. CREATE VAULT                                                        │
+│     ┌─────────┐     ┌─────────────────┐     ┌──────────────────┐        │
+│     │  User   │────▶│  Lock Bitcoin   │────▶│ Set Beneficiaries│       │
 │     └─────────┘     └─────────────────┘     └──────────────────┘        │
 │                                                      │                  │
 │                                                      ▼                  │
-│  2. SET INACTIVITY PERIOD               ┌──────────────────────┐       │
+│  3. SET INACTIVITY PERIOD               ┌──────────────────────┐        │
 │                                          │ Inactivity: 90 days │        │
 │                                          └──────────────────────┘       │
 │                                                      │                  │
-│  3. PERIODIC CHECK-IN                                │                  │
+│  4. PERIODIC CHECK-IN                                │                  │
 │     ┌─────────────┐                                  │                  │
 │     │  Check-In   │◀────── Every X days ────────────┘                  │
 │     │  (Resets    │                                                     │
@@ -76,15 +91,15 @@ Your keys, your Bitcoin. BitWill never has access to your private keys.
 │            │                                                            │
 │            │ If no check-in after inactivity period:                    │
 │            ▼                                                            │
-│  4. AUTOMATIC TRANSFER                                                  │
+│  5. AUTOMATIC TRANSFER                                                  │
 │     ┌────────────────────────────────────────────────┐                  │
-│     │  Vault Triggers → Beneficiaries Can Claim     │                  │
+│     │  Vault Triggers → Beneficiaries Can Claim      │                   │
 │     │                                                │                  │
-│     │  ┌────────┐  ┌────────┐  ┌────────┐           │                  │
-│     │  │ Son 50%│  │Wife 30%│  │Bro 20% │           │                  │
-│     │  └────────┘  └────────┘  └────────┘           │                  │
+│     │  ┌────────┐  ┌────────┐  ┌────────┐            │                   │
+│     │  │ Son 50%│  │Wife 30%│  │Bro 20% │            │                   │
+│     │  └────────┘  └────────┘  └────────┘            │                   │
 │     └────────────────────────────────────────────────┘                  │
-│                                                                          │
+│                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -94,22 +109,26 @@ Your keys, your Bitcoin. BitWill never has access to your private keys.
 - **React 18** with TypeScript
 - **Vite** for fast development and building
 - **React Router** for navigation
-- **Lucide React** for icons
-- **CSS Variables** for theming
+- **Lucide React** for beautiful icons
 
-### Blockchain Integration
+### Wallet Integration
+- **sats-connect** - Real Bitcoin wallet connection (Xverse, Leather)
+- **@scure/btc-signer** - PSBT construction
+- **mempool.space API** - Balance and UTXO queries
+
+### Blockchain
 - **Charms Protocol** - Programmable tokens on Bitcoin
-- **Bitcoin Testnet** - For development and testing
+- **Bitcoin Testnet4** - For development and testing
 
 ### Architecture
 ```
 src/
 ├── components/          # Reusable UI components
-│   ├── Navbar.tsx      # Navigation with wallet connection
-│   ├── VaultCard.tsx   # Vault display card
+│   ├── Navbar.tsx      # Navigation with wallet selector
+│   ├── VaultCard.tsx   # Vault display with on-chain indicator
 │   └── ...
 ├── context/
-│   └── WalletContext.tsx  # Wallet state management
+│   └── WalletContext.tsx  # Wallet & vault state management
 ├── pages/
 │   ├── Landing.tsx     # Landing page
 │   ├── Dashboard.tsx   # User dashboard
@@ -117,7 +136,9 @@ src/
 │   ├── VaultDetail.tsx # Individual vault view
 │   └── Claim.tsx       # Beneficiary claim page
 ├── services/
-│   └── charms.ts       # Charms Protocol integration
+│   ├── bitcoinWallet.ts    # sats-connect integration
+│   ├── psbtBuilder.ts      # PSBT construction
+│   └── charms.ts           # Charms Protocol integration
 ├── types/
 │   └── index.ts        # TypeScript type definitions
 └── index.css           # Global styles and design system
@@ -128,6 +149,7 @@ src/
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
+- [Xverse Wallet](https://www.xverse.app/) browser extension (for real wallet testing)
 
 ### Installation
 
@@ -148,11 +170,55 @@ npm run dev
 Create a `.env` file in the root directory:
 
 ```env
+# Bitcoin Network (Mainnet, Testnet, Signet)
+VITE_BITCOIN_NETWORK=Testnet
+
+# Charms API
 VITE_CHARMS_API_URL=https://api.charms.dev
-VITE_BITCOIN_NETWORK=testnet
+VITE_CHARMS_PROVER_URL=https://prove.charms.dev
+
+# Bitcoin API
+VITE_MEMPOOL_API_URL=https://mempool.space/testnet4/api
+
+# App Info
+VITE_APP_NAME=BitWill
+VITE_APP_VERSION=1.0.0
 ```
 
-## 🔗 Charms Integration
+## 🔗 Wallet Integration
+
+BitWill supports **real Bitcoin wallet integration** using the sats-connect library.
+
+### Supported Wallets
+- **Xverse Wallet** (Recommended)
+- **Leather Wallet**
+- **Demo Mode** (No wallet required)
+
+### Connect Your Wallet
+
+1. Install the [Xverse Wallet](https://www.xverse.app/) browser extension
+2. Click "Connect Wallet" in the BitWill navbar
+3. Select "Xverse Wallet" from the modal
+4. Approve the connection request
+
+### Get Testnet BTC
+
+To test real vault creation, you'll need Testnet BTC:
+
+1. **Testnet4 Faucet**: [https://testnet4.anyone.eu.org](https://testnet4.anyone.eu.org)
+2. **Alternative**: [mempool.space testnet4 faucet](https://mempool.space/testnet4/faucet)
+
+### Features by Mode
+
+| Feature | Demo Mode | Real Wallet |
+|---------|-----------|-------------|
+| View Dashboard | ✅ | ✅ |
+| Create Vaults | ✅ (Simulated) | ✅ (Real Tx) |
+| Check-in | ✅ (Simulated) | ✅ (Real Tx) |
+| View Balance | ✅ (Mock) | ✅ (Real Balance) |
+| Claim Funds | ✅ (Simulated) | ✅ (Real Tx) |
+
+## 🪄 Charms Integration
 
 BitWill leverages the **Charms Protocol** to create programmable Bitcoin vaults with time-locked inheritance logic.
 
@@ -178,65 +244,36 @@ BitWill leverages the **Charms Protocol** to create programmable Bitcoin vaults 
    - The Charm's app logic validates the claim against beneficiary addresses
    - Bitcoin is transferred according to the predefined splits
 
-### Charm App Contract (Pseudo-code)
+### PSBT Structure
 
-```rust
-pub fn app_contract(
-    app: &App,
-    tx: &Transaction,
-    x: &VaultState,
-    w: &Witness
-) -> bool {
-    match w.action {
-        Action::CheckIn => {
-            // Verify owner signature
-            verify_owner_signature(tx, x.owner_address) &&
-            // Update last check-in time
-            x.last_check_in = current_time() &&
-            x.status == VaultStatus::Active
-        },
-        Action::Claim => {
-            // Verify vault is triggered
-            is_triggered(x) &&
-            // Verify claimer is a beneficiary
-            is_valid_beneficiary(w.claimer, x.beneficiaries) &&
-            // Verify correct amount is being claimed
-            verify_claim_amount(tx, w.claimer, x.beneficiaries)
-        },
-        Action::Cancel => {
-            // Only owner can cancel
-            verify_owner_signature(tx, x.owner_address) &&
-            x.status == VaultStatus::Active
-        }
-    }
-}
+All vault operations create PSBTs with Charms spell data embedded in OP_RETURN outputs:
+
 ```
-
-### Spell Structure
-
-```yaml
-# Create Vault Spell
-version: 2
-apps:
-  $app_id:
-    id: $app_vk
-    binary: ./target/riscv32im-risc0-zkvm-elf/release/bitwill-vault
-ins:
-  - utxo: $owner_utxo
-    charms: []
-outs:
-  - address: $owner_address
-    sats: 10000
-    charms:
-      - app: $app_id@$app_vk
-        charm:
-          type: vault
-          owner: $owner_address
-          beneficiaries: $beneficiaries
-          inactivity_period: 7776000  # 90 days in seconds
-          last_check_in: $current_timestamp
-          status: active
-          amount: 100000000  # 1 BTC in satoshis
+┌─────────────────────────────────────────────────────────────┐
+│                    VAULT CREATION PSBT                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  INPUTS:                                                     │
+│  ┌────────────────────────────────────────────┐             │
+│  │ User's UTXO (to fund vault)                │             │
+│  └────────────────────────────────────────────┘             │
+│                                                              │
+│  OUTPUTS:                                                    │
+│  ┌────────────────────────────────────────────┐             │
+│  │ 1. Owner Address: Vault Amount             │             │
+│  ├────────────────────────────────────────────┤             │
+│  │ 2. OP_RETURN: Charms Spell Data            │             │
+│  │    {                                        │             │
+│  │      "action": "create_vault",             │             │
+│  │      "owner": "tb1q...",                   │             │
+│  │      "beneficiaries": [...],               │             │
+│  │      "inactivityPeriod": 7776000           │             │
+│  │    }                                        │             │
+│  ├────────────────────────────────────────────┤             │
+│  │ 3. Change Address: Remaining sats          │             │
+│  └────────────────────────────────────────────┘             │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## 📋 API Reference
@@ -249,12 +286,16 @@ interface WalletContextType {
   vaults: Vault[];
   claimableVaults: Vault[];
   isLoading: boolean;
-  connectWallet: () => Promise<void>;
+  error: string | null;
+  connectWallet: (useRealWallet?: boolean) => Promise<void>;
   disconnectWallet: () => void;
-  createVault: (data: CreateVaultFormData) => Promise<void>;
-  checkIn: (vaultId: string) => Promise<void>;
-  claimVault: (vaultId: string) => Promise<void>;
-  cancelVault: (vaultId: string) => Promise<void>;
+  refreshBalance: () => Promise<void>;
+  createVault: (name: string, amount: number, beneficiaries: Beneficiary[], inactivityPeriod: number) => Promise<Vault>;
+  checkIn: (vaultId: string) => Promise<TransactionResult>;
+  claimVault: (vaultId: string) => Promise<TransactionResult>;
+  cancelVault: (vaultId: string) => Promise<TransactionResult>;
+  clearError: () => void;
+  isWalletAvailable: () => boolean;
 }
 ```
 
@@ -265,55 +306,61 @@ interface Vault {
   id: string;
   name: string;
   amount: number;
+  amountSats: number;
   beneficiaries: Beneficiary[];
   inactivityPeriod: number;
   lastCheckIn: Date;
   createdAt: Date;
-  status: 'active' | 'warning' | 'triggered' | 'claimed';
+  status: 'active' | 'warning' | 'triggered' | 'claimed' | 'cancelled';
   ownerAddress: string;
+  txid?: string;
+  vout?: number;
+  isOnChain: boolean;
 }
 ```
 
 ## 🗺️ Roadmap
 
-### Phase 1: MVP (Current) ✅
+### Phase 1: MVP ✅
 - [x] Landing page with value proposition
-- [x] Wallet connection (mock)
 - [x] Dashboard with vault overview
 - [x] Create vault wizard
 - [x] Vault detail view with timer
 - [x] Beneficiary claim page
 - [x] Check-in functionality
 
-### Phase 2: Charms Integration 🔄
-- [ ] Integrate Charms SDK
-- [ ] Implement vault creation as Charm minting
-- [ ] Implement check-in as state update
-- [ ] Implement claim flow with proof verification
-- [ ] Testnet deployment
+### Phase 2: Real Wallet Integration ✅
+- [x] sats-connect for Xverse/Leather wallets
+- [x] Real balance fetching from mempool.space
+- [x] PSBT construction for all operations
+- [x] Wallet selector modal (Real vs Demo)
+- [x] On-chain indicators and explorer links
 
-### Phase 3: Production Ready
+### Phase 3: Charms Integration 🔄
+- [ ] Integrate Charms Prover API
+- [ ] Real spell proof generation
+- [ ] Testnet vault deployment
+- [ ] On-chain state verification
+
+### Phase 4: Production Ready
 - [ ] Mainnet deployment
 - [ ] Hardware wallet support (Ledger, Trezor)
 - [ ] Email/SMS notifications for check-in reminders
 - [ ] Multi-signature vault support
-- [ ] Recovery options (trusted contacts)
-- [ ] Mobile app
-
-### Phase 4: Advanced Features
-- [ ] Recurring payments to beneficiaries
-- [ ] Condition-based inheritance (not just time)
-- [ ] Integration with legal frameworks
-- [ ] Estate planning partnerships
-- [ ] Insurance integration
 
 ## 🧪 Demo
 
-Visit the live demo: [Coming Soon]
+### Quick Start
+1. Visit the app at `http://localhost:5173`
+2. Click "Connect Wallet" → "Demo Mode" for testing
+3. Create a vault with test beneficiaries
+4. Try check-in and claim functionality
 
-### Demo Credentials
-- The app automatically connects with a mock wallet
-- Test vault creation, check-ins, and claims
+### Real Wallet Testing
+1. Install [Xverse Wallet](https://www.xverse.app/)
+2. Switch to Testnet in Xverse settings
+3. Get Testnet BTC from a faucet
+4. Connect wallet and create real vaults
 
 ## 🏆 Hackathon Submission
 
@@ -329,6 +376,7 @@ BitWill demonstrates the power of programmable tokens on Bitcoin by implementing
 1. **Time-locked state transitions** - Vaults trigger after inactivity period
 2. **Multi-party claims** - Multiple beneficiaries with percentage splits
 3. **Provable execution** - zkVM proofs ensure trustless inheritance
+4. **Real wallet integration** - Sign transactions with your actual Bitcoin wallet
 
 ## 📄 License
 
@@ -340,8 +388,8 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ## 📧 Contact
 
-- GitHub: [@abhishekgoyal](https://github.com/abhishekgoyal)
-- Twitter: [@abhishekgoyal](https://twitter.com/abhishekgoyal)
+- GitHub: [@Abhishekgoyal007](https://github.com/Abhishekgoyal007)
+- Project: [BitWill on GitHub](https://github.com/Abhishekgoyal007/BitWill)
 
 ---
 

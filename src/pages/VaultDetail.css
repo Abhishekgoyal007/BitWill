@@ -125,6 +125,77 @@
     color: var(--text-tertiary);
 }
 
+.vault-detail-amount .amount-sats {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    margin-top: var(--space-1);
+}
+
+/* Vault Badges */
+.vault-badges {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.chain-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: var(--space-1) var(--space-2);
+    font-size: 11px;
+    font-weight: var(--font-semibold);
+    border-radius: var(--radius-sm);
+}
+
+.chain-badge.on-chain {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--color-success);
+}
+
+.chain-badge.demo {
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--color-warning);
+}
+
+/* Copy and Explorer Buttons */
+.detail-value-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.copy-btn,
+.explorer-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.copy-btn:hover,
+.explorer-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-secondary);
+}
+
+.explorer-btn {
+    color: var(--color-primary-400);
+}
+
+.explorer-btn:hover {
+    color: var(--color-primary-300);
+}
+
 /* Timer Card */
 .timer-card {
     padding: var(--space-8);

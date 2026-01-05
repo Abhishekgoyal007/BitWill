@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
 import {
     Gift,
@@ -14,7 +13,6 @@ import './Claim.css';
 
 const Claim: React.FC = () => {
     const { wallet, claimableVaults, claimVault, isLoading, connectWallet } = useWallet();
-    const navigate = useNavigate();
     const [claimingVaultId, setClaimingVaultId] = useState<string | null>(null);
     const [claimedVaults, setClaimedVaults] = useState<string[]>([]);
 
@@ -53,7 +51,7 @@ const Claim: React.FC = () => {
                         </p>
                         <button
                             className="btn btn-primary btn-lg"
-                            onClick={connectWallet}
+                            onClick={() => connectWallet()}
                             disabled={isLoading}
                         >
                             {isLoading ? (

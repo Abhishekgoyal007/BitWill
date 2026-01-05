@@ -11,9 +11,14 @@ import {
     Trash2,
     Loader2,
     Calendar,
-    Activity
+    Activity,
+    Copy,
+    ExternalLink,
+    Wifi,
+    WifiOff
 } from 'lucide-react';
 import './VaultDetail.css';
+
 
 const VaultDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -106,14 +111,21 @@ const VaultDetail: React.FC = () => {
                     </div>
                     <div className="vault-detail-info">
                         <h1>{vault.name}</h1>
-                        <div className={`status-badge status-${statusConfig.color}`}>
-                            <StatusIcon size={14} />
-                            {statusConfig.label}
+                        <div className="vault-badges">
+                            <div className={`status-badge status-${statusConfig.color}`}>
+                                <StatusIcon size={14} />
+                                {statusConfig.label}
+                            </div>
+                            <div className={`chain-badge ${vault.isOnChain ? 'on-chain' : 'demo'}`}>
+                                {vault.isOnChain ? <Wifi size={12} /> : <WifiOff size={12} />}
+                                {vault.isOnChain ? 'On-Chain' : 'Demo'}
+                            </div>
                         </div>
                     </div>
                     <div className="vault-detail-amount">
                         <span className="amount-value">{vault.amount.toFixed(4)}</span>
                         <span className="amount-label">BTC Locked</span>
+                        <span className="amount-sats">{vault.amountSats?.toLocaleString() || Math.round(vault.amount * 100000000).toLocaleString()} sats</span>
                     </div>
                 </div>
 
@@ -132,10 +144,10 @@ const VaultDetail: React.FC = () => {
                     <div className="timer-progress">
                         <div
                             className={`timer-progress-fill ${progressPercentage > 80
-                                    ? 'danger'
-                                    : progressPercentage > 60
-                                        ? 'warning'
-                                        : ''
+                                ? 'danger'
+                                : progressPercentage > 60
+                                    ? 'warning'
+                                    : ''
                                 }`}
                             style={{ width: `${progressPercentage}%` }}
                         />
@@ -213,18 +225,44 @@ const VaultDetail: React.FC = () => {
                         </div>
                         <div className="detail-item">
                             <span className="detail-label">Vault ID</span>
-                            <span className="detail-value mono">{vault.id}</span>
+                            <div className="detail-value-row">
+                                <span className="detail-value mono">{vault.id.slice(0, 16)}...</span>
+                                <button className="copy-btn" onClick={() => navigator.clipboard.writeText(vault.id)}>
+                                    <Copy size={14} />
+                                </button>
+                            </div>
                         </div>
                         <div className="detail-item">
                             <span className="detail-label">Owner</span>
-                            <span className="detail-value mono">
-                                {vault.ownerAddress.slice(0, 12)}...{vault.ownerAddress.slice(-8)}
-                            </span>
+                            <div className="detail-value-row">
+                                <span className="detail-value mono">
+                                    {vault.ownerAddress.slice(0, 12)}...{vault.ownerAddress.slice(-8)}
+                                </span>
+                                <button className="copy-btn" onClick={() => navigator.clipboard.writeText(vault.ownerAddress)}>
+                                    <Copy size={14} />
+                                </button>
+                            </div>
                         </div>
                         <div className="detail-item">
                             <span className="detail-label">Network</span>
                             <span className="detail-value">Bitcoin (Testnet)</span>
                         </div>
+                        {vault.txid && vault.isOnChain && (
+                            <div className="detail-item">
+                                <span className="detail-label">Transaction</span>
+                                <div className="detail-value-row">
+                                    <span className="detail-value mono">{vault.txid.slice(0, 12)}...{vault.txid.slice(-8)}</span>
+                                    <a
+                                        href={`https://mempool.space/testnet4/tx/${vault.txid}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="explorer-btn"
+                                    >
+                                        <ExternalLink size={14} />
+                                    </a>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
